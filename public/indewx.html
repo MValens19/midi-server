@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyberpunk MIDI Mixer</title>
+    <script src="https://cdn.jsdelivr.net/npm/nexusui@latest/dist/NexusUI.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { 
+            background-color: #0d0d21; /* Fondo azul oscuro casi negro */
+            color: #d0d0f0; /* Texto claro con toque azulado */
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 15px;
+            overflow-x: auto; /* Permitir scroll horizontal si hay muchos canales */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h2 { 
+            color: #00eaff; /* Azul cian brillante */
+            text-shadow: 0 0 12px #00eaff, 0 0 20px rgba(0,234,255,0.4);
+            margin-bottom: 25px;
+            font-size: 1.8em;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .console-container { 
+            display: flex; 
+            gap: 12px; /* Espacio entre las tiras de canal */
+            padding-bottom: 20px; /* Para que no se corte el scroll */
+            min-width: fit-content; /* Asegura que la consola no se comprima */
+        }
+        .channel-strip {
+            background: linear-gradient(180deg, #1a1a38 0%, #0d0d21 100%); /* Degradado sutil */
+            border: 1px solid #3a3a60; /* Borde más oscuro */
+            border-radius: 12px;
+            padding: 15px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px; /* Espacio entre elementos dentro del strip */
+            width: 105px; /* Ancho fijo para cada canal */
+            flex-shrink: 0; /* Evita que los canales se encojan */
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4), inset 0 0 8px rgba(255, 255, 255, 0.05); /* Sombra y brillo interno */
+        }
+        .label { 
+            font-size: 10px; 
+            color: #ff33bb; /* Rosa neón para las etiquetas */
+            text-transform: uppercase; 
+            font-weight: bold; 
+            letter-spacing: 0.8px;
+            margin-top: 5px;
+            margin-bottom: 3px;
+        }
+        .dial-group {
+            display: flex;
+            gap: 8px; /* Espacio entre los dos diales */
+            margin-bottom: 10px;
+        }
+        .button-group {
+            display: flex;
+            flex-direction: column; /* Botones uno encima del otro */
+            gap: 6px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .mute-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: auto; /* Empuja el mute hacia abajo */
+        }
+
+        /* Estilos NexusUI personalizados para que coincidan con la imagen */
+        .nx-dial { border: 1px solid rgba(255,255,255,0.1); }
+        .nx-button { border-radius: 8px; }
+        .nx-toggle { border-radius: 12px; }
+        .nx-slider { border-radius: 8px; }
+
+        /* Ajustes finos de colores para NexusUI (sobrescribiendo los defaults) */
+        .nx-dial > circle:first-child { fill: #28285a !important; stroke: #4a4a80 !important; } /* Fondo del dial */
+        .nx-dial > circle:last-child { stroke: #bc13fe !important; } /* Marcador del dial (morado) */
+
+        .nx-button.active > rect { fill: #00eaff !important; stroke: #00d4ff !important; } /* Botón activo (cian) */
+        .nx-button > rect { fill: #1c1c4f !important; stroke: #3a3a60 !important; } /* Botón inactivo */
+
+        .nx-slider > rect:first-child { fill: #28285a !important; stroke: #4a4a80 !important; } /* Fondo del slider */
+        .nx-slider > rect:last-child { fill: #ff33bb !important; } /* Barra del slider (rosa) */
+
+        .nx-toggle.active > rect { fill: #ff33bb !important; stroke: #ff0055 !important; } /* Toggle activo (rosa) */
+        .nx-toggle > rect { fill: #1c1c4f !important; stroke: #3a3a60 !important; } /* Toggle inactivo */
+
+    </style>
+</head>
+<body>
+    <h2>WEB MIDI MIXER</h2>
+    <div class="console-container" id="mixer"></div>
+
+    <script>
+        const socket = io();
+        const mixer = document.getElementById('mixer');
+        const CHANNELS = 10; // Número de canales deseados
+
+        // Asegurarse de que el DOM y NexusUI estén listos
+        window.onload = function() {
+            for (let i = 1; i <= CHANNELS; i++) {
+                const strip = document.createElement('div');
+                strip.className = 'channel-strip';
+                
+                // Etiqueta del Canal
+                strip.insertAdjacentHTML('beforeend', `<div class="label" style="font-size:12px; margin-bottom:10px; color:#00eaff;">CH ${i}</div>`);
+                
+                // Grupo de Diales (Potenciómetros)
+                const dialGroup = document.createElement('div');
+                dialGroup.className = 'dial-group';
+                strip.appendChild(dialGroup);
+
+                strip.insertAdjacentHTML('beforeend', `<div class="label" style="margin-top:0;">CTRL</div>`); // Etiqueta para los botones de control
+                
+                // Grupo de Botones Crl1, Crl2
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'button-group';
+                strip.appendChild(buttonGroup);
+
+                // Slider de Volumen
+                strip.insertAdjacentHTML('beforeend', `<div class="label" style="margin-top:10px;">VOL</div>`);
+                
+                // Sección de Mute (empujada hacia abajo)
+                const muteSection = document.createElement('div');
+                muteSection.className = 'mute-section';
+                muteSection.insertAdjacentHTML('beforeend', `<div class="label">MUTE</div>`);
+                strip.appendChild(muteSection);
+
+                mixer.appendChild(strip); // Añadir el strip al DOM antes de crear los NexusUI
+
+                // Instanciar controles NexusUI
+                const dial1 = new Nexus.Dial(dialGroup, { size: [48, 48], interaction: 'radial', color: '#bc13fe' }); // Morado
+                const dial2 = new Nexus.Dial(dialGroup, { size: [48, 48], interaction: 'radial', color: '#bc13fe' }); // Morado
+                
+                const btn1 = new Nexus.Button(buttonGroup, { size: [40, 40], mode: 'aftertouch', state: false, color: '#00eaff' }); // Cian
+                const btn2 = new Nexus.Button(buttonGroup, { size: [40, 40], mode: 'aftertouch', state: false, color: '#00eaff' }); // Cian
+                
+                const fader = new Nexus.Slider(strip, { size: [30, 160], mode: 'relative', color: '#ff33bb' }); // Rosa
+                
+                const mute = new Nexus.Toggle(muteSection, { size: [45, 25], state: false, color: '#ff33bb' }); // Rosa
+
+                // --- Lógica de envío MIDI ---
+                // CC 1-10: Sliders de volumen
+                // CC 11-20: Dial 1 (Ctrl1)
+                // CC 21-30: Dial 2 (Ctrl2)
+                // Notas 31-40: Botón 1 (Crl1) como NoteOn/Off
+                // Notas 41-50: Botón 2 (Crl2) como NoteOn/Off
+                // CC 51-60: Mute (Toggle)
+
+                dial1.on('change', v => socket.emit('midi-ctrl', { cc: 10 + i, value: Math.floor(v * 127) }));
+                dial2.on('change', v => socket.emit('midi-ctrl', { cc: 20 + i, value: Math.floor(v * 127) }));
+                
+                btn1.on('change', v => socket.emit('midi-note', { note: 30 + i, velocity: v ? 127 : 0, type: v ? 'noteon' : 'noteoff' }));
+                btn2.on('change', v => socket.emit('midi-note', { note: 40 + i, velocity: v ? 127 : 0, type: v ? 'noteon' : 'noteoff' }));
+
+                fader.on('change', v => socket.emit('midi-ctrl', { cc: i, value: Math.floor(v * 127) }));
+                mute.on('change', v => socket.emit('midi-ctrl', { cc: 50 + i, value: v ? 127 : 0 }));
+            }
+        };
+    </script>
+</body>
+</html>

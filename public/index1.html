@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web MIDI Mixer - 10 Tracks</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b141d;
+            --strip-bg: #16212e;
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff007f;
+            --fader-track: #080c11;
+            --text-color: #e0e1dd;
+        }
+
+        body {
+            background-color: #050505;
+            color: var(--text-color);
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Contenedor principal con scroll horizontal */
+        .mixer-viewport {
+            background: var(--bg-color);
+            width: 95vw;
+            max-width: 1200px;
+            height: 850px; /* Más alto para el recorrido */
+            border-radius: 20px;
+            border: 4px solid #222;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.9);
+        }
+
+        header h1 {
+            text-align: center;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        /* Área de scroll para los 10 tracks */
+        .channels-scroll-area {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--neon-blue) #111;
+        }
+
+        .channels-scroll-area::-webkit-scrollbar { height: 8px; }
+        .channels-scroll-area::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 10px; }
+
+        .channel-strip {
+            background: linear-gradient(180deg, var(--strip-bg) 0%, #0d151f 100%);
+            min-width: 90px; /* Ancho fijo para mantener la escala */
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            border: 1px solid #222;
+        }
+
+        .track-number {
+            font-size: 0.7rem;
+            color: var(--neon-blue);
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .knob {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #333, #111);
+            border: 2px solid var(--neon-pink);
+            box-shadow: 0 0 8px var(--neon-pink);
+            margin-bottom: 15px;
+            cursor: ns-resize;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 80%;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: #121c26;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.55rem;
+            padding: 6px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn.active { background: var(--neon-blue); color: #000; box-shadow: 0 0 12px var(--neon-blue); }
+        .btn-mute { border-color: var(--neon-pink); color: var(--neon-pink); }
+        .btn-mute.active { background: var(--neon-pink); color: #000; box-shadow: 0 0 12px var(--neon-pink); }
+
+        /* SECCIÓN DEL FADER EXTENDIDA CON dB */
+        .fader-section {
+            display: flex;
+            width: 100%;
+            height: 400px; /* Recorrido mucho más alto */
+            justify-content: center;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        /* Marcas de Decibeles */
+        .db-scale {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            font-size: 0.5rem;
+            color: #555;
+            padding-right: 5px;
+            text-align: right;
+            width: 25px;
+        }
+
+        .db-scale span.zero { color: var(--neon-blue); font-weight: bold; }
+
+        .fader-container {
+            height: 100%;
+            width: 12px;
+            background: var(--fader-track);
+            border-radius: 6px;
+            position: relative;
+            box-shadow: inset 2px 2px 5px #000;
+        }
+
+        .fader-input {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 400px; /* Debe coincidir con height de fader-section */
+            height: 40px;
+            background: transparent;
+            transform: rotate(-90deg);
+            position: absolute;
+            top: 180px; /* Centrado dinámico */
+            left: -194px;
+            cursor: pointer;
+            outline: none;
+            margin: 0;
+            z-index: 2;
+        }
+
+        /* El Thumb SVG */
+        .fader-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 50px;
+            width: 34px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='50' viewBox='0 0 34 50'%3E%3Crect x='2' y='2' width='30' height='46' rx='3' fill='%23222' stroke='%23444'/%3E%3Crect x='4' y='23' width='26' height='4' rx='1' fill='%23ff007f'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            filter: drop-shadow(0 0 8px var(--neon-pink));
+        }
+
+        .vol-label-bottom {
+            margin-top: 10px;
+            font-size: 0.6rem;
+            color: #666;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="mixer-viewport">
+    <header>
+        <h1>Web MIDI Multi-Track Mixer</h1>
+    </header>
+
+    <div class="channels-scroll-area" id="mixer">
+        </div>
+</div>
+
+<script>
+    const mixer = document.getElementById('mixer');
+    const tracks = 10;
+
+    for (let i = 1; i <= tracks; i++) {
+        const strip = document.createElement('div');
+        strip.className = 'channel-strip';
+        strip.innerHTML = `
+            <span class="track-number">TRACK ${i.toString().padStart(2, '0')}</span>
+            <div class="knob"></div>
+            <div class="btn-group">
+                <button class="btn">CTRL</button>
+                <button class="btn">CTRL 2</button>
+                <button class="btn btn-mute">MUTE</button>
+            </div>
+            <div class="fader-section">
+                <div class="db-scale">
+                    <span>+12</span>
+                    <span>+6</span>
+                    <span class="zero">0</span>
+                    <span>-6</span>
+                    <span>-12</span>
+                    <span>-24</span>
+                    <span>-48</span>
+                    <span>-∞</span>
+                </div>
+                <div class="fader-container">
+                    <input type="range" class="fader-input" min="0" max="100" value="75">
+                </div>
+            </div>
+            <span class="vol-label-bottom">VOLUME</span>
+        `;
+        mixer.appendChild(strip);
+    }
+
+    // Interacciones
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', () => btn.classList.toggle('active'));
+    });
+
+    // Efecto de rotación simple para knobs
+    document.querySelectorAll('.knob').forEach(knob => {
+        let rotation = 0;
+        knob.addEventListener('click', () => {
+            rotation = (rotation + 45) % 360;
+            knob.style.transform = `rotate(${rotation}deg)`;
+            knob.style.transition = 'transform 0.2s';
+        });
+    });
+</script>
+
+</body>
+</html>
