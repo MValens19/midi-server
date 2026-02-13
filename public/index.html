@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Web MIDI Mixer • Pro Edition</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       height: 100dvh;
       background: linear-gradient(135deg, #0a0015, #1a0033);
@@ -16,13 +22,15 @@
       display: flex;
       flex-direction: column;
     }
+
     header {
       padding: 12px 16px;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(8px);
       text-align: center;
       border-bottom: 1px solid #6600cc44;
     }
+
     h1 {
       font-size: 1.3rem;
       background: linear-gradient(90deg, #a78bfa, #7c3aed);
@@ -32,11 +40,13 @@
       letter-spacing: 1.5px;
       font-weight: bold;
     }
+
     .main-content {
       flex: 1;
       display: flex;
       overflow: hidden;
     }
+
     .channels {
       flex: 1;
       display: flex;
@@ -46,9 +56,10 @@
       scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
     }
+
     .channel {
       flex: 0 0 120px;
-      background: rgba(20,10,50,0.6);
+      background: rgba(20, 10, 50, 0.6);
       border: 1px solid #6600cc55;
       border-radius: 16px;
       padding: 12px 8px;
@@ -56,38 +67,71 @@
       flex-direction: column;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 4px 20px rgba(100,0,255,0.2);
+      box-shadow: 0 4px 20px rgba(100, 0, 255, 0.2);
     }
-    .channel h3 { font-size: 0.9rem; color: #cc99ff; }
-    .knobs { display: flex; gap: 10px; }
+
+    .channel h3 {
+      font-size: 0.9rem;
+      color: #cc99ff;
+    }
+
+    .knobs {
+      display: flex;
+      gap: 10px;
+    }
+
     .fader-section {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 8px;
       height: 260px;
-      
+
     }
-    .fader-label { font-size: 0.7rem; color: #66ffcc; font-weight: bold; }
-    .buttons { display: flex; gap: 8px; }
+
+    .fader-label {
+      font-size: 0.7rem;
+      color: #66ffcc;
+      font-weight: bold;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+    }
+
     .btn {
-      padding: 6px 12px; font-size: 0.7rem; border-radius: 8px;
-      border: 1px solid; background: rgba(40,20,70,0.7);
-      color: white; touch-action: manipulation;
+      padding: 6px 12px;
+      font-size: 0.7rem;
+      border-radius: 8px;
+      border: 1px solid;
+      background: rgba(40, 20, 70, 0.7);
+      color: white;
+      touch-action: manipulation;
     }
+
     .active-btn {
-      padding: 6px 20px; font-size: 0.7rem; border-radius: 8px;
-      border: 1px solid #00d4ff; background: rgba(40,20,70,0.7);
-      color: white; touch-action: manipulation;
+      padding: 6px 20px;
+      font-size: 0.7rem;
+      border-radius: 8px;
+      border: 1px solid #00d4ff;
+      background: rgba(40, 20, 70, 0.7);
+      color: white;
+      touch-action: manipulation;
     }
+
     .button-active {
-      background: linear-gradient(90deg,#22d3ee,#06b6d4) !important;
+      background: linear-gradient(90deg, #22d3ee, #06b6d4) !important;
       color: #021025 !important;
-      box-shadow: 0 0 15px rgba(6,182,212,0.5);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
     }
-    canvas { border-radius: 10px !important; }
+
+    canvas {
+      border-radius: 10px !important;
+    }
   </style>
 </head>
+
 <body>
 
   <header>
@@ -100,7 +144,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/nexusui@2"></script>
-  
+
   <script>
     const socket = io();
     const channelsDiv = document.getElementById('channels');
@@ -176,31 +220,46 @@
         const state = activeBtn.dataset.active === 'true';
         activeBtn.dataset.active = (!state).toString();
         activeBtn.classList.toggle('button-active', !state);
-        
+
         toggleUI(document.getElementById(`fader-${i}`), !state);
         socket.emit('midi-note', { note: 60 + i, velocity: !state ? 127 : 0, type: !state ? 'noteon' : 'noteoff' });
       });
 
       // Evento FX1 (Mapeado a Nota MIDI 70 + i)
+      // Ejemplo para FX1 (Aplica lo mismo para FX2 y Active)
       fx1Btn.addEventListener('click', () => {
         const state = fx1Btn.dataset.on === 'true';
-        fx1Btn.dataset.on = (!state).toString();
-        fx1Btn.classList.toggle('button-active', !state);
-        
-        toggleUI(document.getElementById(`ctrl1-${i}`), !state);
-        socket.emit('midi-note', { note: 70 + i, velocity: !state ? 127 : 0, type: !state ? 'noteon' : 'noteoff' });
+        const newState = !state;
+
+        fx1Btn.dataset.on = newState.toString();
+        fx1Btn.classList.toggle('button-active', newState);
+
+        // ENVIAR SEÑAL DE "PULSO" (ON y luego OFF inmediatamente)
+        // Esto hace que el DAW cambie de estado con un solo toque en la web
+        socket.emit('midi-note', { note: 70 + i, velocity: 127, type: 'noteon' });
+
+        setTimeout(() => {
+          socket.emit('midi-note', { note: 70 + i, velocity: 0, type: 'noteoff' });
+        }, 50); // 50ms después enviamos el OFF automáticamente
       });
 
-      // Evento FX2 (Mapeado a Nota MIDI 80 + i)
-      fx2Btn.addEventListener('click', () => {
+        fx2Btn.addEventListener('click', () => {
         const state = fx2Btn.dataset.on === 'true';
-        fx2Btn.dataset.on = (!state).toString();
-        fx2Btn.classList.toggle('button-active', !state);
-        
-        toggleUI(document.getElementById(`gain-${i}`), !state);
-        socket.emit('midi-note', { note: 80 + i, velocity: !state ? 127 : 0, type: !state ? 'noteon' : 'noteoff' });
+        const newState = !state;
+
+        fx2Btn.dataset.on = newState.toString();
+        fx2Btn.classList.toggle('button-active', newState);
+
+        // ENVIAR SEÑAL DE "PULSO" (ON y luego OFF inmediatamente)
+        // Esto hace que el DAW cambie de estado con un solo toque en la web
+        socket.emit('midi-note', { note: 80 + i, velocity: 127, type: 'noteon' });
+
+        setTimeout(() => {
+          socket.emit('midi-note', { note: 80 + i, velocity: 0, type: 'noteoff' });
+        }, 50); // 50ms después enviamos el OFF automáticamente
       });
-    }
+    } 
   </script>
 </body>
+
 </html>
