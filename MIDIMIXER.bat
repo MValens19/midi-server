@@ -1,4 +1,4 @@
 @echo off
-cd /d "C:\Users\Aux Sistemas\midi-server"
+cd /d "C:\Users\Moises Valens\midi-server"
 node server.js
 pause

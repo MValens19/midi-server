@@ -239,11 +239,20 @@
       // Evento ACTIVE (Mapeado a Nota MIDI 60 + i)
       activeBtn.addEventListener('click', () => {
         const state = activeBtn.dataset.active === 'true';
-        activeBtn.dataset.active = (!state).toString();
-        activeBtn.classList.toggle('button-active', !state);
+        const newState = !state;
+        activeBtn.dataset.active = newState.toString();
+        activeBtn.classList.toggle('button-active', newState);
+        toggleUI(document.getElementById(`fader-${i}`), newState);
+        toggleUI(document.getElementById(`ctrl1-${i}`), newState);
+        toggleUI(document.getElementById(`gain-${i}`), newState);
+        toggleUI(fx1Btn, newState);
+        toggleUI(fx2Btn, newState);
 
-        toggleUI(document.getElementById(`fader-${i}`), !state);
-        socket.emit('midi-note', { note: 60 + i, velocity: !state ? 127 : 0, type: !state ? 'noteon' : 'noteoff' });
+        socket.emit('midi-note', { note: 60 + i, velocity: 127, type: 'noteon' });
+        
+        setTimeout(() => {
+          socket.emit('midi-note', { note: 60 + i, velocity: 0, type: 'noteoff' });
+        }, 50);
       });
 
       // Evento FX1 (Mapeado a Nota MIDI 70 + i)
@@ -254,6 +263,8 @@
 
         fx1Btn.dataset.on = newState.toString();
         fx1Btn.classList.toggle('fx-active', newState);
+        toggleUI(document.getElementById(`ctrl1-${i}`), newState);
+
 
         // ENVIAR SEÑAL DE "PULSO" (ON y luego OFF inmediatamente)
         // Esto hace que el DAW cambie de estado con un solo toque en la web
@@ -270,6 +281,7 @@
 
         fx2Btn.dataset.on = newState.toString();
         fx2Btn.classList.toggle('fx-active', newState);
+        toggleUI(document.getElementById(`gain-${i}`), newState);
 
         // ENVIAR SEÑAL DE "PULSO" (ON y luego OFF inmediatamente)
         // Esto hace que el DAW cambie de estado con un solo toque en la web
