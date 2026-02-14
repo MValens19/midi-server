@@ -166,10 +166,76 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="NexusUI.js"></script>
 
-  <script>
+<script>
     const socket = io();
     const channelsDiv = document.getElementById('channels');
-    const CHANNELS_COUNT = 10; // Puedes subirlo a 10 si quieres
+    const CHANNELS_COUNT = 10; 
+
+    const registry = {
+        cc: {},   
+        notes: {} 
+    };
+
+    // --- FUNCIÓN INTELIGENTE PARA UI ---
+    // Revisa si TODAS las condiciones se cumplen para habilitar un control
+    function updateControlState(elementId, isChannelActive, isFxActive) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        
+        // El control solo se activa si el Canal está Activo Y el FX correspondiente está ON
+        const shouldBeActive = isChannelActive && isFxActive;
+        
+        el.style.opacity = shouldBeActive ? '1' : '0.3';
+        el.style.pointerEvents = shouldBeActive ? 'auto' : 'none';
+    }
+
+    socket.on('init-state', (data) => {
+        console.log("📥 Recuperando estado...", data);
+        for (const [cc, valor] of Object.entries(data.cc)) {
+            if (registry.cc[cc]) registry.cc[cc].value = valor;
+        }
+        for (const [nota, estado] of Object.entries(data.notes)) {
+            const btn = registry.notes[nota];
+            if (btn) {
+                if (estado === true) {
+                    btn.dataset.active = "true";
+                    btn.dataset.on = "true"; 
+                    if(btn.classList.contains('fx-btn')) btn.classList.add('fx-active');
+                    else btn.classList.add('button-active');
+                } else {
+                    btn.dataset.active = "false";
+                    btn.dataset.on = "false";
+                    btn.classList.remove('fx-active');
+                    btn.classList.remove('button-active');
+                }
+            }
+        }
+        // Forzamos una actualización visual de todas las perillas al cargar
+        // para que coincidan con los botones recuperados
+        for(let i=1; i<=CHANNELS_COUNT; i++){
+            refreshChannelUI(i); 
+        }
+    });
+
+    // Función auxiliar para actualizar todo el canal de golpe
+    function refreshChannelUI(i) {
+        const activeBtn = document.getElementById(`active-${i}`);
+        const fx1Btn = document.getElementById(`fx1-${i}`);
+        const fx2Btn = document.getElementById(`fx2-${i}`);
+        
+        const isChanActive = activeBtn.dataset.active === 'true';
+        const isFx1On = fx1Btn.dataset.on === 'true';
+        const isFx2On = fx2Btn.dataset.on === 'true';
+
+        // Fader: Solo depende de Active
+        updateControlState(`fader-${i}`, isChanActive, true);
+        
+        // Ctrl1: Depende de Active Y de FX1
+        updateControlState(`ctrl1-${i}`, isChanActive, isFx1On);
+        
+        // Gain: Depende de Active Y de FX2 (AQUÍ ESTABA TU PROBLEMA)
+        updateControlState(`gain-${i}`, isChanActive, isFx2On);
+    }
 
     for (let i = 1; i <= CHANNELS_COUNT; i++) {
       const channel = document.createElement('div');
@@ -194,102 +260,106 @@
       `;
       channelsDiv.appendChild(channel);
 
-      // --- NEXUSUI COMPONENTS ---
-
-      // Knob CTRL1 (CC 20 + i)
-      const ctrl1Knob = new Nexus.Dial(`#ctrl1-${i}`, {
-        size: [45, 45], min: 0, max: 127, value: 64, interaction: 'vertical'
-      });
+      // --- NEXUSUI ---
+      // Ctrl1 (CC 20+i)
+      const ctrl1Knob = new Nexus.Dial(`#ctrl1-${i}`, { size: [45, 45], min: 0, max: 127, value: 64 });
       ctrl1Knob.colorize('accent', '#ff66cc');
-      ctrl1Knob.colorize('fill', '#ff66cc88');
+      registry.cc[20 + i] = ctrl1Knob;
       ctrl1Knob.on('change', v => socket.emit('midi-ctrl', { cc: 20 + i, value: Math.floor(v) }));
 
-      // Knob GAIN (CC 30 + i)
-      const gainKnob = new Nexus.Dial(`#gain-${i}`, {
-        size: [45, 45], min: 0, max: 127, value: 90, interaction: 'vertical'
-      });
+      // Gain (CC 30+i)
+      const gainKnob = new Nexus.Dial(`#gain-${i}`, { size: [45, 45], min: 0, max: 127, value: 90 });
       gainKnob.colorize('accent', '#7c3aed');
-      gainKnob.colorize('fill', '#4d009988');
-      gainKnob.on('change', v => socket.emit('midi-ctrl', { cc: 30 + i, value: Math.floor(v) }));
-
-      // Fader VOL (CC i)
-      const channelFader = new Nexus.Slider(`#fader-${i}`, {
-        size: [35, 400], min: 0, max: 127, value: 100, mode: 'relative'
+      registry.cc[30 + i] = gainKnob;
+      
+      // LOG DEPURACIÓN CLIENTE
+      gainKnob.on('change', v => {
+          console.log(`Enviando Gain CH${i}:`, Math.floor(v)); // <--- MIRA LA CONSOLA DEL NAVEGADOR
+          socket.emit('midi-ctrl', { cc: 30 + i, value: Math.floor(v) });
       });
+
+      // Fader (CC i)
+      const channelFader = new Nexus.Slider(`#fader-${i}`, { size: [35, 400], min: 0, max: 127, value: 100, mode: 'relative' });
       channelFader.colorize('accent', '#33cc99');
-      channelFader.colorize('fill', '#80808088');
+      registry.cc[i] = channelFader;
       channelFader.on('change', v => socket.emit('midi-ctrl', { cc: i, value: Math.floor(v) }));
 
-      // --- LOGICA DE BOTONES Y MIDI ---
+      // --- BOTONES ---
       const activeBtn = document.getElementById(`active-${i}`);
       const fx1Btn = document.getElementById(`fx1-${i}`);
       const fx2Btn = document.getElementById(`fx2-${i}`);
 
-      // Inicializar visual
+      registry.notes[60 + i] = activeBtn;
+      registry.notes[70 + i] = fx1Btn;
+      registry.notes[80 + i] = fx2Btn;
+
+      // Inicialización visual
       activeBtn.classList.add('button-active');
       fx1Btn.classList.add('fx-active');
       fx2Btn.classList.add('fx-active');
 
-      // Helper para deshabilitar visualmente
-      function toggleUI(el, state) {
-        el.style.opacity = state ? '1' : '0.3';
-        el.style.pointerEvents = state ? 'auto' : 'none';
-      }
+    // --- CORRECCIÓN EN LOS EVENTOS DE CLICK ---
 
-      // Evento ACTIVE (Mapeado a Nota MIDI 60 + i)
+      // ACTIVE
       activeBtn.addEventListener('click', () => {
-        const state = activeBtn.dataset.active === 'true';
-        const newState = !state;
+        const newState = !(activeBtn.dataset.active === 'true');
         activeBtn.dataset.active = newState.toString();
         activeBtn.classList.toggle('button-active', newState);
-        toggleUI(document.getElementById(`fader-${i}`), newState);
-        toggleUI(document.getElementById(`ctrl1-${i}`), newState);
-        toggleUI(document.getElementById(`gain-${i}`), newState);
-        toggleUI(fx1Btn, newState);
-        toggleUI(fx2Btn, newState);
-
-        socket.emit('midi-note', { note: 60 + i, velocity: 127, type: 'noteon' });
         
+        refreshChannelUI(i); 
+
+        // 1. Enviamos el ON con el estado visual
+        socket.emit('midi-note', { 
+            note: 60 + i, velocity: 127, type: 'noteon', visualState: newState 
+        });
+
+        // 2. CORRECCIÓN: En el OFF también enviamos 'visualState: newState'
         setTimeout(() => {
-          socket.emit('midi-note', { note: 60 + i, velocity: 0, type: 'noteoff' });
+            socket.emit('midi-note', { 
+                note: 60 + i, 
+                velocity: 0, 
+                type: 'noteoff',
+                visualState: newState // <--- ¡ESTO FALTABA!
+            });
         }, 50);
       });
 
-      // Evento FX1 (Mapeado a Nota MIDI 70 + i)
-      // Ejemplo para FX1 (Aplica lo mismo para FX2 y Active)
+      // FX1
       fx1Btn.addEventListener('click', () => {
-        const state = fx1Btn.dataset.on === 'true';
-        const newState = !state;
-
+        const newState = !(fx1Btn.dataset.on === 'true');
         fx1Btn.dataset.on = newState.toString();
         fx1Btn.classList.toggle('fx-active', newState);
-        toggleUI(document.getElementById(`ctrl1-${i}`), newState);
+        
+        refreshChannelUI(i); 
 
-
-        // ENVIAR SEÑAL DE "PULSO" (ON y luego OFF inmediatamente)
-        // Esto hace que el DAW cambie de estado con un solo toque en la web
-        socket.emit('midi-note', { note: 70 + i, velocity: 127, type: 'noteon' });
-
+        socket.emit('midi-note', { note: 70 + i, velocity: 127, type: 'noteon', visualState: newState });
+        
+        // CORRECCIÓN AQUÍ
         setTimeout(() => {
-          socket.emit('midi-note', { note: 70 + i, velocity: 0, type: 'noteoff' });
-        }, 50); // 50ms después enviamos el OFF automáticamente
+            socket.emit('midi-note', { 
+                note: 70 + i, velocity: 0, type: 'noteoff', visualState: newState 
+            });
+        }, 50);
       });
 
-        fx2Btn.addEventListener('click', () => {
-        const state = fx2Btn.dataset.on === 'true';
-        const newState = !state;
-
+      // FX2
+      fx2Btn.addEventListener('click', () => {
+        const newState = !(fx2Btn.dataset.on === 'true');
         fx2Btn.dataset.on = newState.toString();
         fx2Btn.classList.toggle('fx-active', newState);
-        toggleUI(document.getElementById(`gain-${i}`), newState);
+        
+        refreshChannelUI(i); 
 
-        // ENVIAR SEÑAL DE "PULSO" (ON y luego OFF inmediatamente)
-        // Esto hace que el DAW cambie de estado con un solo toque en la web
-        socket.emit('midi-note', { note: 80 + i, velocity: 127, type: 'noteon' });
+        console.log(`Click FX2 CH${i} -> Nuevo Estado: ${newState}`);
 
+        socket.emit('midi-note', { note: 80 + i, velocity: 127, type: 'noteon', visualState: newState });
+        
+        // CORRECCIÓN AQUÍ
         setTimeout(() => {
-          socket.emit('midi-note', { note: 80 + i, velocity: 0, type: 'noteoff' });
-        }, 50); // 50ms después enviamos el OFF automáticamente
+            socket.emit('midi-note', { 
+                note: 80 + i, velocity: 0, type: 'noteoff', visualState: newState 
+            });
+        }, 50);
       });
     } 
   </script>

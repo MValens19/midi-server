@@ -3,52 +3,111 @@ const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const easymidi = require('easymidi');
+const fs = require('fs');
+const path = require('path');
 
-// Asegúrate de que este nombre coincida EXACTAMENTE con el de loopMIDI
+// ⚠️ Asegúrate de que el puerto se llame así en LoopMIDI
 const output = new easymidi.Output('WebMIDI'); 
 
 app.use(express.static('public')); 
 
+const SAVE_FILE = path.join(__dirname, 'mezcla_guardada.json');
+let ccState = {};    
+let noteState = {};  
+
+// --- CARGA DE DATOS ---
+function loadSettings() {
+    if (fs.existsSync(SAVE_FILE)) {
+        try {
+            const rawData = fs.readFileSync(SAVE_FILE);
+            const data = JSON.parse(rawData);
+            ccState = data.cc || {};
+            noteState = data.notes || {};
+            console.log('💾 Memoria cargada correctamente.');
+        } catch (e) {
+            console.error('⚠️ Archivo corrupto, iniciando limpio.');
+        }
+    } else {
+        console.log('✨ Iniciando nueva configuración.');
+    }
+}
+loadSettings();
+
+// --- GUARDADO AUTOMÁTICO ---
+let saveTimeout;
+function saveSettings() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        const dataToSave = JSON.stringify({ cc: ccState, notes: noteState }, null, 2);
+        fs.writeFile(SAVE_FILE, dataToSave, (err) => {
+            if (err) console.error('Error guardando:', err);
+            else console.log('💾 Guardado en disco.');
+        });
+    }, 1000);
+}
+
 io.on('connection', (socket) => {
     console.log('📱 Teléfono conectado');
 
-    // 1. Recibir señales de Faders y Perillas (Control Change)
-// 1. Recibir señales de Faders y Perillas (CC)
-socket.on('midi-ctrl', (data) => {
-    try {
-        // En muchas versiones de easymidi, se usa 'cc' en lugar de 'controlchange'
-        output.send('cc', {
-            controller: data.cc,
-            value: data.value,
-            channel: 0
-        });
-        console.log(`Control CC: ${data.cc} | Valor: ${data.value}`);
-    } catch (err) {
-        console.error("Error enviando CC:", err.message);
-    }
-});
+    socket.emit('init-state', { cc: ccState, notes: noteState });
 
-    // 2. Recibir señales de Botones (Note On / Note Off)
+    // --- A. DEPURACIÓN DE FADERS Y KNOBS (CC) ---
+    socket.on('midi-ctrl', (data) => {
+        // Log para ver si llega la señal del Gain
+        console.log(`🎚️ CC: ${data.cc} | Val: ${data.value}`); 
+        
+        ccState[data.cc] = data.value;
+        saveSettings();
+
+        try {
+            output.send('cc', {
+                controller: data.cc,
+                value: data.value,
+                channel: 0 
+            });
+        } catch (err) {
+            console.error("❌ Error enviando CC:", err.message);
+        }
+    });
+
+    // --- B. DEPURACIÓN DE BOTONES (NOTAS) ---
     socket.on('midi-note', (data) => {
-        output.send(data.type, {
-            note: data.note,
-            velocity: data.velocity,
-            channel: 0
-        });
-        console.log(`Botón - Tipo: ${data.type} | Nota: ${data.note}`);
+        // Log para ver si llega la señal de FX2
+        console.log(`🎹 Nota: ${data.note} | Tipo: ${data.type}`);
+
+        if (data.hasOwnProperty('visualState')) {
+            noteState[data.note] = data.visualState;
+        } else {
+             if (data.type === 'noteon') noteState[data.note] = true;
+             if (data.type === 'noteoff') noteState[data.note] = false;
+        }
+        saveSettings();
+
+        try {
+            output.send(data.type, {
+                note: data.note,
+                velocity: data.velocity,
+                channel: 0 
+            });
+        } catch (err) {
+            console.error("❌ Error enviando Nota:", err.message);
+        }
     });
 
     socket.on('disconnect', () => {
-        console.log('❌ Teléfono desconectado');
+        console.log('❌ Desconectado');
     });
 });
 
 const PORT = 3000;
-// Usamos '0.0.0.0' para que sea visible en toda tu red WiFi
 http.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor activo en el puerto ${PORT}`);
-    // Esto imprimirá tu IP automáticamente para que no tengas que buscarla
+    console.log(`🚀 Servidor listo en puerto ${PORT}`);
     const networkInterfaces = require('os').networkInterfaces();
-    const ip = Object.values(networkInterfaces).flat().find(i => i.family === 'IPv4' && !i.internal).address;
-    console.log(`🔗 Abre en tu móvil: http://${ip}:${PORT}`);
+    Object.keys(networkInterfaces).forEach((ifname) => {
+        networkInterfaces[ifname].forEach((iface) => {
+            if ('IPv4' === iface.family && !iface.internal) {
+                console.log(`🔗 http://${iface.address}:${PORT}`);
+            }
+        });
+    });
 });
