@@ -264,12 +264,14 @@
       // Ctrl1 (CC 20+i)
       const ctrl1Knob = new Nexus.Dial(`#ctrl1-${i}`, { size: [45, 45], min: 0, max: 127, value: 64 });
       ctrl1Knob.colorize('accent', '#ff66cc');
+      ctrl1Knob.colorize('fill', '#4d009988');
       registry.cc[20 + i] = ctrl1Knob;
       ctrl1Knob.on('change', v => socket.emit('midi-ctrl', { cc: 20 + i, value: Math.floor(v) }));
 
       // Gain (CC 30+i)
       const gainKnob = new Nexus.Dial(`#gain-${i}`, { size: [45, 45], min: 0, max: 127, value: 90 });
       gainKnob.colorize('accent', '#7c3aed');
+      gainKnob.colorize('fill', '#4d009988');
       registry.cc[30 + i] = gainKnob;
       
       // LOG DEPURACIÓN CLIENTE
@@ -281,6 +283,7 @@
       // Fader (CC i)
       const channelFader = new Nexus.Slider(`#fader-${i}`, { size: [35, 400], min: 0, max: 127, value: 100, mode: 'relative' });
       channelFader.colorize('accent', '#33cc99');
+      channelFader.colorize('fill', '#80808088');
       registry.cc[i] = channelFader;
       channelFader.on('change', v => socket.emit('midi-ctrl', { cc: i, value: Math.floor(v) }));
 
