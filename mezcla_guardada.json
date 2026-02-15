@@ -1,35 +1,50 @@
 {
   "cc": {
-    "1": 97,
-    "2": 69,
-    "3": 79,
-    "5": 65,
+    "1": 109,
+    "2": 107,
+    "3": 107,
+    "4": 103,
+    "5": 102,
     "6": 64,
     "9": 72,
     "10": 71,
-    "21": 93,
-    "22": 20,
-    "23": 84,
+    "21": 79,
+    "22": 2,
+    "23": 34,
     "29": 7,
-    "31": 65,
-    "32": 73,
-    "34": 98,
-    "35": 44,
-    "37": 90,
-    "39": 123
+    "31": 40,
+    "32": 80,
+    "33": 24,
+    "34": 24,
+    "35": 48,
+    "37": 88,
+    "39": 127
   },
   "notes": {
-    "61": false,
+    "61": true,
     "62": false,
     "63": false,
-    "64": true,
-    "65": true,
+    "64": false,
+    "65": false,
+    "66": false,
+    "67": false,
+    "68": false,
     "71": false,
     "72": false,
     "73": false,
+    "74": false,
+    "75": false,
+    "76": false,
+    "77": false,
+    "78": false,
     "81": false,
     "82": false,
-    "83": false
+    "83": false,
+    "84": false,
+    "85": false,
+    "86": false,
+    "87": false,
+    "88": false
   },
   "config": {
     "1": {
@@ -37,20 +52,20 @@
       "icon": "piano"
     },
     "2": {
+      "name": "PAD",
+      "icon": "default"
+    },
+    "3": {
       "name": "RHODES",
       "icon": "synth"
     },
-    "3": {
-      "name": "GUITAR",
-      "icon": "guitar"
-    },
     "4": {
-      "name": "CH 4",
-      "icon": "piano"
+      "name": "EP",
+      "icon": "synth"
     },
     "5": {
-      "name": "CH 5",
-      "icon": "piano"
+      "name": "TRITON",
+      "icon": "synth"
     },
     "6": {
       "name": "CH 6",
@@ -62,6 +77,14 @@
     },
     "8": {
       "name": "CH 8",
+      "icon": "default"
+    },
+    "9": {
+      "name": "CH 9",
+      "icon": "default"
+    },
+    "10": {
+      "name": "CH 10",
       "icon": "default"
     }
   }

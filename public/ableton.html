@@ -3,22 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#1a1a1a">
   <title>Ableton Web Controller</title>
   
   <script src="/socket.io/socket.io.js"></script>
- 
+  <script src="https://cdn.jsdelivr.net/npm/nexusui@2.1.0/dist/NexusUI.js"></script>
 
   <style>
-    /* --- TEMA ABLETON LIVE (VARIABLES) --- */
+    /* --- TEMA ABLETON LIVE --- */
     :root {
       --bg-dark: #1a1a1a;       
       --panel-gray: #2c2c2c;    
       --inactive-gray: #4a4a4a; 
-      --active-yellow: #ffc600; /* Amarillo clásico Ableton */
-      --active-blue: #2b9ad8;   /* Azul para FX */
+      --active-yellow: #ffc600; 
+      --active-blue: #2b9ad8;   
       --text-color: #dddddd;
-      --knob-accent: #25e55e;   /* Verde para los knobs */
     }
 
     body {
@@ -26,463 +24,317 @@
       color: var(--text-color);
       font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       margin: 0;
-      padding: 10px; /* Un poco de margen */
+      padding: 10px;
       display: flex;
-      gap: 6px; /* Separación entre canales */
+      gap: 6px;
       height: 100vh;
-      overflow-x: auto; /* Scroll horizontal si hay muchos canales */
-      overflow-y: hidden;
+      overflow-x: auto;
       user-select: none;
-      -webkit-user-select: none;
     }
 
-    /* --- TIRA DE CANAL (CHANNEL STRIP) --- */
     .channel-strip {
       background-color: var(--panel-gray);
-      min-width: 85px; 
-      max-width: 90px;
+      min-width: 85px; max-width: 90px;
       height: 95vh;
-      display: flex;
-      flex-direction: column;
-      border-radius: 4px;
-      overflow: hidden;
-      position: relative;
-      flex-shrink: 0; /* Evita que se aplasten */
+      display: flex; flex-direction: column;
+      border-radius: 4px; overflow: hidden;
+      flex-shrink: 0;
     }
 
-    /* --- CABECERA (HEADER) --- */
     .track-header {
-      padding: 12px 0;
-      text-align: center;
-      cursor: pointer;
-      transition: opacity 0.2s;
+      padding: 10px 0; text-align: center; cursor: pointer;
       border-bottom: 1px solid rgba(0,0,0,0.2);
     }
-    .track-header:active { opacity: 0.7; }
     
     .track-name { 
-      font-size: 10px; 
-      font-weight: bold; 
-      margin-top: 6px; 
-      text-transform: uppercase; 
-      letter-spacing: 1px;
-      color: #111; /* Texto oscuro para contraste en pastel */
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding: 0 4px;
+      font-size: 10px; font-weight: bold; margin-top: 5px; 
+      text-transform: uppercase; color: #111;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* --- SECCIÓN DE ENVÍOS (KNOBS) --- */
     .sends-section {
-      padding: 15px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 15px;
-      background: #252525;
+      padding: 15px 0; display: flex; flex-direction: column; 
+      align-items: center; gap: 15px; background: #252525;
       border-bottom: 1px solid #111;
-      flex-grow: 0;
     }
 
-    /* --- BOTONES (FLAT STYLE) --- */
     .button-rack {
-      display: flex;
-      flex-direction: column;
-      padding: 8px;
-      gap: 6px;
-      background: #252525;
-      border-bottom: 1px solid #111;
+      display: flex; flex-direction: column; padding: 8px; gap: 6px;
+      background: #252525; border-bottom: 1px solid #111;
     }
 
     .ableton-btn {
-      width: 100%;
-      padding: 10px 0;
-      border: none;
+      width: 100%; padding: 10px 0; border: none;
       background-color: var(--inactive-gray);
-      color: #ccc;
-      font-size: 10px;
-      font-weight: bold;
-      border-radius: 2px; 
-      cursor: pointer;
-      transition: all 0.1s;
+      color: #ccc; font-size: 10px; font-weight: bold;
+      border-radius: 2px; cursor: pointer;
     }
 
-    /* ESTADOS ACTIVOS DE LOS BOTONES */
-    .ableton-btn.active-state {
-      background-color: var(--active-yellow) !important;
-      color: #000 !important; 
-      box-shadow: 0 0 5px rgba(255, 198, 0, 0.4);
-    }
-    
-    .ableton-btn.fx-state {
-      background-color: var(--active-blue) !important;
-      color: #000 !important;
-    }
+    .ableton-btn.active-state { background-color: var(--active-yellow) !important; color: #000 !important; }
+    .ableton-btn.fx-state { background-color: var(--active-blue) !important; color: #000 !important; }
 
-    /* --- FADER AREA --- */
     .fader-area {
-      flex-grow: 1; /* Ocupa el resto del espacio */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #222;
-      padding: 10px 0;
+      flex-grow: 1; display: flex; justify-content: center; 
+      align-items: center; background: #222; padding: 10px 0;
     }
 
-    /* --- MODAL (VENTANA EMERGENTE) --- */
+    /* MODAL */
     .modal-overlay {
-      display: none;
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8);
-      z-index: 1000;
-      justify-content: center; align-items: center;
-      backdrop-filter: blur(4px);
+      display: none; position: fixed; top: 0; left: 0; 
+      width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+      z-index: 1000; justify-content: center; align-items: center;
     }
     .modal-content {
-      background: #333;
-      border: 1px solid #555;
-      padding: 20px;
-      width: 80%;
-      max-width: 300px;
-      border-radius: 4px;
-      text-align: center;
-      color: white;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      background: #333; padding: 20px; border-radius: 4px; 
+      text-align: center; color: white; width: 80%; max-width: 300px;
     }
-    .input-name {
-      width: 90%; padding: 8px; margin-bottom: 15px;
-      background: #222; border: 1px solid #555; color: white;
-      text-align: center; font-size: 1rem;
+    .icon-grid { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+    .icon-option { 
+      width: 35px; height: 35px; background: #444; margin: 5px;
+      display: flex; align-items: center; justify-content: center; 
+      cursor: pointer; fill: #888; 
     }
-    .icon-grid {
-      display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
-    }
-    .icon-option {
-      width: 40px; height: 40px; background: #444; 
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; border-radius: 4px;
-      fill: #888; transition: all 0.2s;
-    }
-    .icon-option.selected {
-      background: var(--active-yellow); fill: #000;
-    }
-    .save-btn {
-      background: var(--active-yellow); color: black; border: none;
-      padding: 10px 20px; font-weight: bold; cursor: pointer; width: 100%;
-    }
-
+    .icon-option.selected { background: var(--active-yellow); fill: #000; }
   </style>
 </head>
 <body>
 
-  <div id="channels-container" style="display:flex; gap:6px;">
-    </div>
+  <div id="channels-container" style="display:flex; gap:6px;"></div>
 
   <div class="modal-overlay" id="editModal">
     <div class="modal-content">
-      <h3 style="margin-top:0; color:#ccc;">EDIT TRACK</h3>
-      <input type="text" id="channelNameInput" class="input-name" maxlength="10">
+      <h3>EDIT TRACK</h3>
+      <input type="text" id="channelNameInput" style="width:90%; padding:8px; margin-bottom:15px; background:#222; border:1px solid #555; color:white; text-align:center;">
       <div class="icon-grid" id="iconGrid"></div>
-      <button class="save-btn" id="saveChannelBtn">SAVE</button>
-      <button onclick="closeModal()" style="margin-top:10px; background:transparent; border:none; color:#888; text-decoration:underline;">Cancel</button>
+      <button id="saveChannelBtn" style="background:var(--active-yellow); border:none; padding:10px 20px; font-weight:bold; cursor:pointer;">SAVE</button>
+      <button onclick="document.getElementById('editModal').style.display='none'" style="background:none; border:none; color:#888; text-decoration:underline; margin-left:10px;">Cancel</button>
     </div>
   </div>
-  <script src="NexusUI.js"></script>
 
+  <script src="NexusUI.js"></script>
   <script>
     const socket = io();
     const channelsContainer = document.getElementById('channels-container');
-    const CHANNELS_COUNT = 8; // Ajusta a tus necesidades
+    const CHANNELS_COUNT = 10; 
 
-    // --- DICCIONARIO DE ICONOS SVG ---
+    // --- ICONOS ---
     const ICONS = {
-        default: { 
-            viewBox: "0 0 24 24", 
-            content: '<path d="M4 6h16v12H4z"></path>' 
-        },
-        piano: { 
-            viewBox: "0 0 512 512", 
-            content: '<path d="m480.7,11h-449.2c-11.3,0-20.4,9.1-20.4,20.4v449.2c0,11.3 9.1,20.4 20.4,20.4h449.2c11.3,0 20.4-9.1 20.4-20.4v-449.2c5.68434e-14-11.3-9.2-20.4-20.4-20.4zm-354.1,40.8h60.6v229.8c0,16.7-13.6,30.3-30.3,30.3-16.7,0-30.3-13.6-30.3-30.3v-229.8zm50.7,298c29.3-8.8 50.7-36 50.7-68.2v-229.8h56.1v229.8c0,32.1 21.4,59.4 50.7,68.2v110.4h-157.5v-110.4zm178-37.9c-16.7,0-30.3-13.6-30.3-30.3v-229.8h60.6v229.8c0,16.7-13.6,30.3-30.3,30.3zm-303.4-260.1h33.8v229.8c0,32.1 21.4,59.4 50.7,68.2v110.4h-84.5v-408.4zm408.3,408.4h-84.6v-110.4c29.3-8.8 50.7-36 50.7-68.2v-229.8h33.8v408.4z"></path>' 
-        },
-        synth: { 
-            viewBox: "0 0 16 16", 
-            content: '<path d="M0,3 L0,12 L15.986,12 L15.986,3 L0,3 L0,3 Z M2,4 L4,4 L4,5 L2,5 L2,4 L2,4 Z M15.083,11.059 L0.992,11.059 L0.992,7 L2.083,7 L2.083,9.938 L2.992,9.938 L2.992,7 L4.083,7 L4.083,9.938 L4.992,9.938 L4.992,7 L6.083,7 L6.083,9.938 L6.992,9.938 L6.992,7 L9.083,7 L9.083,9.938 L9.992,9.938 L9.992,7 L11.083,7 L11.083,9.938 L11.992,9.938 L11.992,7 L13.083,7 L13.083,9.938 L13.992,9.938 L13.992,7 L15.083,7 L15.083,11.059 L15.083,11.059 Z M15,5 L8,5 L8,4 L15,4 L15,5 L15,5 Z"></path>' 
-        },
-        guitar: {
-            viewBox: "0 0 32 32", 
-            content: '<polyline points="12.5,21.4 11,19.9 22.4,8.5 "/><polygon points="25.4,10 22.4,10 22.4,7 26.2,3.2 29.2,6.2 "/><path d="M19.3,11.6c-2.2-1.5-5.1-1.3-6.9,0.5c-0.4,0.4-0.8,1-1,1.5c-0.4,0.9-1.3,1.5-2.2,1.6c-0.9,0.1-1.9,0.2-2.7,0.6c-4,2.1-4.1,7.5-0.7,10.9c3.4,3.4,8.8,3.3,10.9-0.7c0.4-0.8,0.5-1.8,0.6-2.7c0.1-0.9,0.7-1.8,1.6-2.2c0.2-0.1,0.7-0.3,1.1-0.4c0.8-0.2,1.4-0.9,1.7-1.6v0c0.2-0.6,0-1.3-0.6-1.6l-1.6-0.9"/>'
-        },
-        trumpet: { 
-            viewBox: "0 0 512 512", 
-            content: '<path d="M480.239,236.17l-160.3-227c-4.3-8.4-28.1-15.8-36,6.2l-60.7,206c0,0-32.9,22.2-35.3,23.7l-26.3-36.6c-6.2-9.2-18.5-11.3-27.7-5.1s-11.3,18.5-5.1,27.7l26.1,37.1l-48.3,33.8l-26.1-37c-6.2-9.2-18.5-11.3-27.7-5.1c-9.2,6.2-11.3,18.5-5.1,27.7l26.2,37.3c-2.1,1.4-65.3,45.9-65.3,45.9c-9.2,6.2-11.3,18.5-5.1,27.7c11.2,12.8,24.7,7.2,28.8,5.1l13.4-9.4c1.7,9.9,5.5,19.4,11.2,27.9l22.6,31.8c11.9,18.9,54.8,45.8,97.6,17.5l113-79.1c17.6-10.5,46.9-49.5,17.5-97.6c0,0-26.1-36.4-28.1-38.5l183.2,11.8C471.839,267.67,493.739,263.67,480.239,236.17z M268.539,358.47l-113,79.1c-13.4,9.2-32.9,6.2-42.1-7.2l-22.6-31.8c-6.1-6.1-10.4-26.2,4.2-38.7l118.1-82.6c19.4-9.8,33.9,1.1,40.1,8.3l22.6,31.8C280.939,323.57,287.239,345.97,268.539,358.47z M267.539,215.67l43.1-149l112,159.2L267.539,215.67z"></path>' 
-        }
+        default: { viewBox: "0 0 24 24", content: '<path d="M4 6h16v12H4z"></path>' },
+        piano:   { viewBox: "0 0 512 512", content: '<path d="m480.7,11h-449.2c-11.3,0-20.4,9.1-20.4,20.4v449.2c0,11.3 9.1,20.4 20.4,20.4h449.2c11.3,0 20.4-9.1 20.4-20.4v-449.2c5.68434e-14-11.3-9.2-20.4-20.4-20.4zm-354.1,40.8h60.6v229.8c0,16.7-13.6,30.3-30.3,30.3-16.7,0-30.3-13.6-30.3-30.3v-229.8zm50.7,298c29.3-8.8 50.7-36 50.7-68.2v-229.8h56.1v229.8c0,32.1 21.4,59.4 50.7,68.2v110.4h-157.5v-110.4zm178-37.9c-16.7,0-30.3-13.6-30.3-30.3v-229.8h60.6v229.8c0,16.7-13.6,30.3-30.3,30.3zm-303.4-260.1h33.8v229.8c0,32.1 21.4,59.4 50.7,68.2v110.4h-84.5v-408.4zm408.3,408.4h-84.6v-110.4c29.3-8.8 50.7-36 50.7-68.2v-229.8h33.8v408.4z"></path>' },
+        synth:   { viewBox: "0 0 16 16", content: '<path d="M0,3 L0,12 L15.986,12 L15.986,3 L0,3 L0,3 Z M2,4 L4,4 L4,5 L2,5 L2,4 L2,4 Z M15.083,11.059 L0.992,11.059 L0.992,7 L2.083,7 L2.083,9.938 L2.992,9.938 L2.992,7 L4.083,7 L4.083,9.938 L4.992,9.938 L4.992,7 L6.083,7 L6.083,9.938 L6.992,9.938 L6.992,7 L9.083,7 L9.083,9.938 L9.992,9.938 L9.992,7 L11.083,7 L11.083,9.938 L11.992,9.938 L11.992,7 L13.083,7 L13.083,9.938 L13.992,9.938 L13.992,7 L15.083,7 L15.083,11.059 L15.083,11.059 Z M15,5 L8,5 L8,4 L15,4 L15,5 L15,5 Z"></path>' },
+        guitar:  { viewBox: "0 0 32 32", content: '<polyline points="12.5,21.4 11,19.9 22.4,8.5 "/><polygon points="25.4,10 22.4,10 22.4,7 26.2,3.2 29.2,6.2 "/><path d="M19.3,11.6c-2.2-1.5-5.1-1.3-6.9,0.5c-0.4,0.4-0.8,1-1,1.5c-0.4,0.9-1.3,1.5-2.2,1.6c-0.9,0.1-1.9,0.2-2.7,0.6c-4,2.1-4.1,7.5-0.7,10.9c3.4,3.4,8.8,3.3,10.9-0.7c0.4-0.8,0.5-1.8,0.6-2.7c0.1-0.9,0.7-1.8,1.6-2.2c0.2-0.1,0.7-0.3,1.1-0.4c0.8-0.2,1.4-0.9,1.7-1.6v0c0.2-0.6,0-1.3-0.6-1.6l-1.6-0.9"/>' },
+        trumpet: { viewBox: "0 0 512 512", content: '<path d="M480.239,236.17l-160.3-227c-4.3-8.4-28.1-15.8-36,6.2l-60.7,206c0,0-32.9,22.2-35.3,23.7l-26.3-36.6c-6.2-9.2-18.5-11.3-27.7-5.1s-11.3,18.5-5.1,27.7l26.1,37.1l-48.3,33.8l-26.1-37c-6.2-9.2-18.5-11.3-27.7-5.1c-9.2,6.2-11.3,18.5-5.1,27.7l26.2,37.3c-2.1,1.4-65.3,45.9-65.3,45.9c-9.2,6.2-11.3,18.5-5.1,27.7c11.2,12.8,24.7,7.2,28.8,5.1l13.4-9.4c1.7,9.9,5.5,19.4,11.2,27.9l22.6,31.8c11.9,18.9,54.8,45.8,97.6,17.5l113-79.1c17.6-10.5,46.9-49.5,17.5-97.6c0,0-26.1-36.4-28.1-38.5l183.2,11.8C471.839,267.67,493.739,263.67,480.239,236.17z M268.539,358.47l-113,79.1c-13.4,9.2-32.9,6.2-42.1-7.2l-22.6-31.8c-6.1-6.1-10.4-26.2,4.2-38.7l118.1-82.6c19.4-9.8,33.9,1.1,40.1,8.3l22.6,31.8C280.939,323.57,287.239,345.97,268.539,358.47z M267.539,215.67l43.1-149l112,159.2L267.539,215.67z"></path>' }
     };
 
-    // Colores pastel tipo Ableton para los encabezados
     const PASTEL_COLORS = ['#eebbcc', '#aaddcc', '#ccddff', '#ffffcc', '#ffccaa', '#ddeecc'];
-
     const registry = { cc: {}, notes: {} };
 
-    // --- VARIABLES DEL MODAL ---
+    // --- VARIABLES MODAL ---
     const modal = document.getElementById('editModal');
     const nameInput = document.getElementById('channelNameInput');
     const iconGrid = document.getElementById('iconGrid');
     let currentEditingChannel = null;
     let selectedIconKey = 'default';
 
-    // --- FUNCIONES VISUALES (UI) ---
-    
-    // 1. DIBUJAR ICONOS EN EL MODAL
+    // --- FUNCIONES UI ---
     function renderIconGrid() {
         iconGrid.innerHTML = '';
         for (const [key, data] of Object.entries(ICONS)) {
             const div = document.createElement('div');
             div.className = `icon-option ${key === selectedIconKey ? 'selected' : ''}`;
-            // Rellenamos el SVG
             div.innerHTML = `<svg viewBox="${data.viewBox}" width="24" height="24" style="fill:currentColor; pointer-events:none;">${data.content}</svg>`;
-            div.onclick = () => {
-                selectedIconKey = key;
-                renderIconGrid(); 
-            };
+            div.onclick = () => { selectedIconKey = key; renderIconGrid(); };
             iconGrid.appendChild(div);
         }
     }
 
-    // 2. ABRIR/CERRAR MODAL
     function openModal(channelId) {
         currentEditingChannel = channelId;
         const headerEl = document.getElementById(`header-${channelId}`);
-        const currentName = headerEl.dataset.rawName || `CH ${channelId}`;
-        
-        nameInput.value = currentName;
+        nameInput.value = headerEl.dataset.rawName || `CH ${channelId}`;
         selectedIconKey = headerEl.dataset.iconKey || 'default';
         renderIconGrid();
         modal.style.display = 'flex';
     }
 
-    function closeModal() { modal.style.display = 'none'; }
-
-    // 3. GUARDAR CAMBIOS
     document.getElementById('saveChannelBtn').addEventListener('click', () => {
         const newName = nameInput.value || `CH ${currentEditingChannel}`;
         socket.emit('update-channel-config', {
-            channelId: currentEditingChannel,
-            name: newName,
-            icon: selectedIconKey
+            channelId: currentEditingChannel, name: newName, icon: selectedIconKey
         });
-        closeModal();
+        modal.style.display = 'none';
     });
 
-    // 4. ACTUALIZAR ENCABEZADO DEL CANAL
     function updateChannelHeader(id, name, iconKey) {
         const headerEl = document.getElementById(`header-${id}`);
         if (!headerEl) return;
-
         headerEl.dataset.rawName = name; 
         headerEl.dataset.iconKey = iconKey;
-
         const iconData = ICONS[iconKey] || ICONS['default'];
-        
-        // Estilo Ableton: Icono blanco + Texto Negro
-        headerEl.innerHTML = `
-            <div style="pointer-events:none;">
-                <svg viewBox="${iconData.viewBox}" width="20" height="20" style="fill:#111;">
-                    ${iconData.content}
-                </svg>
-            
-            <div class="track-name">${name}</div> </div>
-        `;
+        headerEl.innerHTML = `<div style="pointer-events:none;"><svg viewBox="${iconData.viewBox}" width="20" height="20" style="fill:#111;">${iconData.content}</svg></div><div class="track-name">${name}</div>`;
     }
 
-    // 5. ACTUALIZAR ESTADO DE CONTROLES (Activo/Inactivo)
     function updateControlState(elementId, isChannelActive, isFxActive) {
         const el = document.getElementById(elementId);
         if (!el) return;
-        const shouldBeActive = isChannelActive && isFxActive;
-        el.style.opacity = shouldBeActive ? '1' : '0.2';
-        el.style.pointerEvents = shouldBeActive ? 'auto' : 'none';
-        el.style.filter = shouldBeActive ? 'grayscale(0%)' : 'grayscale(100%)';
+        const isActive = isChannelActive && isFxActive;
+        el.style.opacity = isActive ? '1' : '0.2';
+        el.style.pointerEvents = isActive ? 'auto' : 'none';
+        el.style.filter = isActive ? 'grayscale(0%)' : 'grayscale(100%)';
     }
 
-    // 6. REFRESCO GENERAL DEL CANAL
     function refreshChannelUI(i) {
         const activeBtn = document.getElementById(`active-${i}`);
         const fx1Btn = document.getElementById(`fx1-${i}`);
         const fx2Btn = document.getElementById(`fx2-${i}`);
-        
         if (!activeBtn) return;
 
         const isChanActive = activeBtn.dataset.active === 'true';
         const isFx1On = fx1Btn.dataset.on === 'true';
         const isFx2On = fx2Btn.dataset.on === 'true';
 
-        // Actualizar visual de Faders y Knobs
         updateControlState(`fader-${i}`, isChanActive, true);
         updateControlState(`ctrl1-${i}`, isChanActive, isFx1On);
         updateControlState(`gain-${i}`, isChanActive, isFx2On);
     }
 
-    // --- COMUNICACIÓN SOCKET ---
-    socket.on('config-updated', (data) => {
-        updateChannelHeader(data.channelId, data.name, data.icon);
-    });
-
-    socket.on('init-state', (data) => {
-        // Recuperar CC (Faders/Knobs)
-        for (const [cc, valor] of Object.entries(data.cc)) {
-            if (registry.cc[cc]) registry.cc[cc].value = valor;
-        }
-        
-        // Recuperar Botones
-        for (const [nota, estado] of Object.entries(data.notes)) {
-            const btn = registry.notes[nota];
-            if (btn) {
-                // Mapeo lógico a clases visuales nuevas
-                if (estado === true) {
-                    btn.dataset.active = "true";
-                    btn.dataset.on = "true";
-                    if(btn.classList.contains('active-btn')) btn.classList.add('active-state');
-                    if(btn.classList.contains('fx-btn')) btn.classList.add('fx-state');
-                }
-            }
-        }
-
-        // Recuperar Config (Nombres/Iconos)
-        if (data.config) {
-            for (const [id, config] of Object.entries(data.config)) {
-                updateChannelHeader(id, config.name, config.icon);
-            }
-        }
-        
-        // Refrescar UI
-        for(let i=1; i<=CHANNELS_COUNT; i++) refreshChannelUI(i);
-    });
-
-    // --- GENERACIÓN DE LA INTERFAZ ---
+    // --- 1. GENERACIÓN DE INTERFAZ (Primero creamos todo) ---
     for (let i = 1; i <= CHANNELS_COUNT; i++) {
         const channel = document.createElement('div');
         channel.className = 'channel-strip';
-        
-        // Color pastel cíclico para el header
         const headerColor = PASTEL_COLORS[(i-1) % PASTEL_COLORS.length];
 
         channel.innerHTML = `
             <div class="track-header" id="header-${i}" style="background-color: ${headerColor};">
                 <div class="track-name">CH ${i}</div>
             </div>
-
             <div class="sends-section">
                 <div id="ctrl1-${i}"></div>
                 <div id="gain-${i}"></div>
             </div>
-
             <div class="button-rack">
-                <button class="ableton-btn active-btn active-state" id="active-${i}" data-active="true">ACTIVE</button>
-                <button class="ableton-btn fx-btn fx-state" id="fx1-${i}" data-on="true">FILT</button>
-                <button class="ableton-btn fx-btn fx-state" id="fx2-${i}" data-on="true">SEND</button>
+                <button class="ableton-btn active-btn" id="active-${i}" data-active="false">ACTIVE</button>
+                <button class="ableton-btn fx-btn" id="fx1-${i}" data-on="false">FILT</button>
+                <button class="ableton-btn fx-btn" id="fx2-${i}" data-on="false">SEND</button>
             </div>
-
             <div class="fader-area">
                 <div id="fader-${i}"></div>
             </div>
         `;
-        
         channelsContainer.appendChild(channel);
 
-        // --- EVENTOS HEADER (LONG PRESS) ---
+        // Header Events
         const headerEl = document.getElementById(`header-${i}`);
         let pressTimer;
-        // Movil
         headerEl.addEventListener('touchstart', () => { pressTimer = setTimeout(() => openModal(i), 600); });
         headerEl.addEventListener('touchend', () => clearTimeout(pressTimer));
-        // PC (Click derecho)
         headerEl.addEventListener('contextmenu', (e) => { e.preventDefault(); openModal(i); });
 
-
-        // --- NEXUS UI INSTANCES ---
-        
-        // 1. Knob CTRL (Filtro)
-        const ctrl1Knob = new Nexus.Dial(`#ctrl1-${i}`, { size: [40, 40], min: 0, max: 127, value: 64, interaction: 'vertical' });
-        ctrl1Knob.colorize('accent', '#888'); // Gris Ableton
-        ctrl1Knob.colorize('fill', '#444');
+        // NexusUI
+        const ctrl1Knob = new Nexus.Dial(`#ctrl1-${i}`, { size: [50, 50], min: 0, max: 127, value: 64, interaction: 'vertical', step: 0 });
+        ctrl1Knob.colorize('accent', '#888'); ctrl1Knob.colorize('fill', '#444');
         registry.cc[20 + i] = ctrl1Knob;
         ctrl1Knob.on('change', v => socket.emit('midi-ctrl', { cc: 20 + i, value: Math.floor(v) }));
 
-        // 2. Knob GAIN (Send/Reverb)
-        const gainKnob = new Nexus.Dial(`#gain-${i}`, { size: [40, 40], min: 0, max: 127, value: 90, interaction: 'vertical' });
-        gainKnob.colorize('accent', '#888');
-        gainKnob.colorize('fill', '#444');
+        const gainKnob = new Nexus.Dial(`#gain-${i}`, { size: [50, 50], min: 0, max: 127, value: 90, interaction: 'vertical', step: 8});
+        gainKnob.colorize('accent', '#888'); gainKnob.colorize('fill', '#444');
         registry.cc[30 + i] = gainKnob;
         gainKnob.on('change', v => socket.emit('midi-ctrl', { cc: 30 + i, value: Math.floor(v) }));
 
-        // 3. Fader VOLUMEN
-        const fader = new Nexus.Slider(`#fader-${i}`, { size: [25, 350], min: 0, max: 127, value: 100, mode: 'relative' });
-        fader.colorize('accent', '#555'); // Handle gris oscuro
-        fader.colorize('fill', '#ffffff');   // Fondo track oscuro
+        const fader = new Nexus.Slider(`#fader-${i}`, { size: [30, 350], min: 0, max: 127, value: 100, mode: 'relative' });
+        fader.colorize('accent', '#ffffff'); fader.colorize('fill', '#333');
         registry.cc[i] = fader;
         fader.on('change', v => socket.emit('midi-ctrl', { cc: i, value: Math.floor(v) }));
 
-
-        // --- LOGICA DE BOTONES ---
+        // Botones
         const activeBtn = document.getElementById(`active-${i}`);
         const fx1Btn = document.getElementById(`fx1-${i}`);
         const fx2Btn = document.getElementById(`fx2-${i}`);
-
-        // Registrar botones
         registry.notes[60 + i] = activeBtn;
         registry.notes[70 + i] = fx1Btn;
         registry.notes[80 + i] = fx2Btn;
 
-        // ACTIVE
+        const sendState = (note, state) => {
+            socket.emit('midi-note', { note: note, velocity: 127, type: 'noteon', visualState: state });
+            setTimeout(() => socket.emit('midi-note', { note: note, velocity: 0, type: 'noteoff', visualState: state }), 50);
+        };
+
         activeBtn.addEventListener('click', () => {
             const newState = !(activeBtn.dataset.active === 'true');
             activeBtn.dataset.active = newState.toString();
-            
-            // Toggle clase visual 'active-state' (Amarillo)
             activeBtn.classList.toggle('active-state', newState);
-            
             refreshChannelUI(i);
-
-            // Enviar con visualState para persistencia
-            socket.emit('midi-note', { note: 60 + i, velocity: 127, type: 'noteon', visualState: newState });
-            setTimeout(() => {
-                socket.emit('midi-note', { note: 60 + i, velocity: 0, type: 'noteoff', visualState: newState });
-            }, 50);
+            sendState(60 + i, newState);
         });
 
-        // FX 1
         fx1Btn.addEventListener('click', () => {
             const newState = !(fx1Btn.dataset.on === 'true');
             fx1Btn.dataset.on = newState.toString();
-            
-            // Toggle clase visual 'fx-state' (Azul)
+            fx1Btn.classList.toggle('fx-active', newState); // Clase interna antigua por seguridad
             fx1Btn.classList.toggle('fx-state', newState);
-            
             refreshChannelUI(i);
-
-            socket.emit('midi-note', { note: 70 + i, velocity: 127, type: 'noteon', visualState: newState });
-            setTimeout(() => {
-                socket.emit('midi-note', { note: 70 + i, velocity: 0, type: 'noteoff', visualState: newState });
-            }, 50);
+            sendState(70 + i, newState);
         });
 
-        // FX 2
         fx2Btn.addEventListener('click', () => {
             const newState = !(fx2Btn.dataset.on === 'true');
             fx2Btn.dataset.on = newState.toString();
-            
-            // Toggle clase visual 'fx-state' (Azul)
             fx2Btn.classList.toggle('fx-state', newState);
-            
             refreshChannelUI(i);
-
-            socket.emit('midi-note', { note: 80 + i, velocity: 127, type: 'noteon', visualState: newState });
-            setTimeout(() => {
-                socket.emit('midi-note', { note: 80 + i, velocity: 0, type: 'noteoff', visualState: newState });
-            }, 50);
+            sendState(80 + i, newState);
         });
+        
+        // Inicializar estado visual apagado
+        refreshChannelUI(i);
     }
+
+    // --- 2. LOGICA SOCKET (Después de crear la UI) ---
+    
+    // Configuración inicial
+    socket.on('config-updated', (data) => updateChannelHeader(data.channelId, data.name, data.icon));
+
+    // CARGA DE ESTADO GUARDADO
+    socket.on('init-state', (data) => {
+        console.log("📥 Recibiendo estado guardado...", data);
+
+        // A. Restaurar Faders/Knobs
+        if (data.cc) {
+            for (const [ccKey, valor] of Object.entries(data.cc)) {
+                const ccNum = parseInt(ccKey); // Asegurar que es número
+                if (registry.cc[ccNum]) {
+                    registry.cc[ccNum].value = valor;
+                }
+            }
+        }
+        
+        // B. Restaurar Botones
+        if (data.notes) {
+            for (const [noteKey, estado] of Object.entries(data.notes)) {
+                const noteNum = parseInt(noteKey);
+                const btn = registry.notes[noteNum];
+                if (btn && estado === true) {
+                    // Solo activamos si estaba guardado como true
+                    if (btn.classList.contains('active-btn')) {
+                        btn.dataset.active = "true";
+                        btn.classList.add('active-state');
+                    } else {
+                        btn.dataset.on = "true";
+                        btn.classList.add('fx-state');
+                    }
+                }
+            }
+        }
+
+        // C. Restaurar Nombres e Iconos
+        if (data.config) {
+            for (const [id, config] of Object.entries(data.config)) {
+                updateChannelHeader(id, config.name, config.icon);
+            }
+        }
+        
+        // D. Refrescar UI final
+        for(let i=1; i<=CHANNELS_COUNT; i++) refreshChannelUI(i);
+    });
 
   </script>
 </body>
