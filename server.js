@@ -1,7 +1,9 @@
 const express = require('express');
 const app = express();
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+const http = require('http').createServer(app); // Cambiado a createServer
+const io = require('socket.io')(http, {
+  cors: { origin: "*" } // Esto ayuda a evitar bloqueos en otras PCs
+});
 const easymidi = require('easymidi');
 const fs = require('fs');
 const path = require('path');
@@ -9,9 +11,14 @@ const path = require('path');
 // ⚠️ Asegúrate de que el puerto se llame así en LoopMIDI
 const output = new easymidi.Output('WebMIDI'); 
 
-app.use(express.static('public')); 
 
-const SAVE_FILE = path.join(__dirname, 'mezcla_guardada.json');
+
+
+// ESTA ES LA FORMA CORRECTA PARA PKG
+// Esto obliga al EXE a buscar la carpeta real que está a su lado en la carpeta física
+app.use(express.static(path.join(process.cwd(), 'public')));
+
+const SAVE_FILE = path.join(process.cwd(), 'mezcla_guardada.json');
 
 // --- MEMORIA ---
 let ccState = {};    
@@ -107,7 +114,31 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3000;
+const os = require('os'); // Librería nativa para obtener info del sistema
+
+// ... (todo tu código anterior de socket.io y easymidi)
+
+const PORT = 5050;
+
 http.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor listo en puerto ${PORT}`);
+    // Obtenemos la IP local de la computadora
+    const networkInterfaces = os.networkInterfaces();
+    let localIp = '127.0.0.1';
+
+    for (const interfaceName in networkInterfaces) {
+        for (const iface of networkInterfaces[interfaceName]) {
+            // Buscamos la IPv4 que no sea interna (loopback)
+            if (iface.family === 'IPv4' && !iface.internal) {
+                localIp = iface.address;
+            }
+        }
+    }
+
+    console.log("-------------------------------------------------");
+    console.log("🚀 SERVIDOR MIDI INICIADO CON ÉXITO");
+    console.log(`📡 CONECTA TU MÓVIL A: http://${localIp}:${PORT}`);
+    console.log(`🏠 O DESDE ESTA PC EN: http://localhost:${PORT}`);
+    console.log("-------------------------------------------------");
+    console.log("⚠️  Recuerda tener loopMIDI abierto con el puerto: WebMIDI");
+    console.log("⚠️  No cierres esta ventana para mantener la conexión.");
 });
