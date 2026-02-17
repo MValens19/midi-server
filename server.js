@@ -118,7 +118,7 @@ const os = require('os'); // Librería nativa para obtener info del sistema
 
 // ... (todo tu código anterior de socket.io y easymidi)
 
-const PORT = 5050;
+const PORT = 4000;
 
 http.listen(PORT, '0.0.0.0', () => {
     // Obtenemos la IP local de la computadora
